@@ -5,14 +5,14 @@ from mteb.abstasks.TaskMetadata import TaskMetadata
 from ....abstasks.AbsTaskRetrieval import AbsTaskRetrieval
 
 
-class OntheITBM1(AbsTaskRetrieval):
+class OntheITBM2(AbsTaskRetrieval):
     metadata = TaskMetadata(
-        name="OntheITBM1-filtered-split",
-        description="ontheit_bm1",
+        name="OntheITBM2-filtered-split",
+        description="ontheit_bm2",
         reference=None,
         dataset={
-            "path": "/data/ONTHEIT/ontheit_benchmark_1",
-            "revision": "6f520037c840f8decb822c6d664774e7b71faf79"
+            "path": "/data/ONTHEIT/ontheit_benchmark_2",
+            "revision": "mteb/tasks/Retrieval/kor/ontheit_bm1.py"
         },
         type="Retrieval",
         category="s2p",
