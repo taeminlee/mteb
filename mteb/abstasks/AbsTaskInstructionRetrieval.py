@@ -1,12 +1,16 @@
+from __future__ import annotations
+
 import json
 import logging
 import os
 from collections import defaultdict
 from time import time
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import tqdm
 from datasets import Features, Value, load_dataset
+
+from mteb.encoder_interface import Encoder
 
 from ..evaluation.evaluators import utils
 from ..evaluation.evaluators.InstructionRetrievalEvaluator import (
@@ -22,10 +26,10 @@ logger = logging.getLogger(__name__)
 class HFDataLoaderInstructions(HFDataLoader):
     def __init__(
         self,
-        hf_repo: str = None,
-        hf_repo_qrels: str = None,
-        data_folder: str = None,
-        prefix: str = None,
+        hf_repo: str | None = None,
+        hf_repo_qrels: str | None = None,
+        data_folder: str | None = None,
+        prefix: str | None = None,
         corpus_file: str = "corpus.jsonl",
         query_file: str = "queries.jsonl",
         qrels_folder: str = "qrels",
@@ -322,8 +326,20 @@ class AbsTaskInstructionRetrieval(AbsTask):
 
         self.data_loaded = True
 
-    def evaluate(self, model, split="test", **kwargs):
-        retriever = InstructionRetrievalEvaluator(model, **kwargs)
+    def evaluate(
+        self,
+        model: Encoder,
+        split: str = "test",
+        *,
+        encode_kwargs: dict[str, Any] = {},
+        **kwargs,
+    ):
+        retriever = InstructionRetrievalEvaluator(
+            model=model,
+            task_name=self.metadata.name,
+            encode_kwargs=encode_kwargs,
+            **kwargs,
+        )
 
         scores_og = {}
         scores_changed = {}

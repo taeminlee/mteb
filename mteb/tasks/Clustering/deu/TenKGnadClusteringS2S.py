@@ -6,7 +6,7 @@ from mteb.abstasks.TaskMetadata import TaskMetadata
 
 
 class TenKGnadClusteringS2S(AbsTaskClustering):
-    superseeded_by = "TenKGnadClusteringS2S.v2"
+    superseded_by = "TenKGnadClusteringS2S.v2"
 
     metadata = TaskMetadata(
         name="TenKGnadClusteringS2S",
@@ -37,6 +37,9 @@ class TenKGnadClusteringS2S(AbsTaskClustering):
 
 
 class TenKGnadClusteringS2SFast(AbsTaskClusteringFast):
+    max_document_to_embed = 10267
+    max_fraction_of_documents_to_embed = None
+
     metadata = TaskMetadata(
         name="TenKGnadClusteringS2S.v2",
         description="Clustering of news article titles. Clustering of 10 splits on the news article category.",
@@ -63,7 +66,7 @@ class TenKGnadClusteringS2SFast(AbsTaskClusteringFast):
         dialect=[],
         text_creation="found",
         bibtex_citation=None,  # none found
-        n_samples={"test": 10275},  # due to duplicates
+        n_samples={"test": 10267},  # due to duplicates
         avg_character_length={"test": 50.96},
     )
 

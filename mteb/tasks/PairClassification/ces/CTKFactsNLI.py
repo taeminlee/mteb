@@ -10,6 +10,7 @@ class CTKFactsNLI(AbsTaskPairClassification):
         dataset={
             "path": "ctu-aic/ctkfacts_nli",
             "revision": "387ae4582c8054cb52ef57ef0941f19bd8012abf",
+            "trust_remote_code": True,
         },
         description="Czech Natural Language Inference dataset of around 3K evidence-claim pairs labelled with SUPPORTS, REFUTES or NOT ENOUGH INFO veracity labels. Extracted from a round of fact-checking experiments.",
         reference="https://arxiv.org/abs/2201.11115",
@@ -55,8 +56,8 @@ class CTKFactsNLI(AbsTaskPairClassification):
         for split in self.metadata.eval_splits:
             _dataset[split] = [
                 {
-                    "sent1": hf_dataset[split]["evidence"],
-                    "sent2": hf_dataset[split]["claim"],
+                    "sentence1": hf_dataset[split]["evidence"],
+                    "sentence2": hf_dataset[split]["claim"],
                     "labels": hf_dataset[split]["label"],
                 }
             ]

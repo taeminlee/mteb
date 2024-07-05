@@ -5,7 +5,7 @@ from typing import Any
 from datasets import Dataset
 
 from mteb.encoder_interface import Encoder, EncoderWithQueryCorpusEncode
-from mteb.MTEBResults import ScoresDict
+from mteb.load_results.mteb_results import ScoresDict
 
 from ..evaluation.evaluators import RerankingEvaluator
 from .AbsTask import AbsTask
@@ -27,9 +27,16 @@ class AbsTaskReranking(AbsTask):
         self,
         model: Encoder | EncoderWithQueryCorpusEncode,
         data_split: Dataset,
+        *,
+        encode_kwargs: dict[str, Any] = {},
         **kwargs: Any,
     ) -> ScoresDict:
-        evaluator = RerankingEvaluator(data_split, **kwargs)
+        evaluator = RerankingEvaluator(
+            data_split,
+            task_name=self.metadata.name,
+            encode_kwargs=encode_kwargs,
+            **kwargs,
+        )
         scores = evaluator(model)
 
         self._add_main_score(scores)

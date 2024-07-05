@@ -16,7 +16,7 @@ NUM_SAMPLES = 2048
 
 
 class BlurbsClusteringS2S(AbsTaskClustering):
-    superseeded_by = "BlurbsClusteringS2S.v2"
+    superseded_by = "BlurbsClusteringS2S.v2"
 
     metadata = TaskMetadata(
         name="BlurbsClusteringS2S",
@@ -55,6 +55,9 @@ class BlurbsClusteringS2S(AbsTaskClustering):
 class BlurbsClusteringS2SFast(AbsTaskClusteringFast):
     # a faster version of the task, since it does not sample from the same distribution we can't use the AbsTaskClusteringFast, instead we
     # simply downsample each cluster.
+
+    max_document_to_embed = NUM_SAMPLES
+    max_fraction_of_documents_to_embed = None
 
     metadata = TaskMetadata(
         name="BlurbsClusteringS2S.v2",

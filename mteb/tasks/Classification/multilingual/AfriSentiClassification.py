@@ -20,6 +20,7 @@ class AfriSentiClassification(MultilingualTask, AbsTaskClassification):
         dataset={
             "path": "shmuhammad/AfriSenti-twitter-sentiment",
             "revision": "b52e930385cf5ed7f063072c3f7bd17b599a16cf",
+            "trust_remote_code": True,
         },
         reference="https://arxiv.org/abs/2302.08956",
         type="Classification",
@@ -65,7 +66,7 @@ class AfriSentiClassification(MultilingualTask, AbsTaskClassification):
         if self.data_loaded:
             return
         self.dataset = {}
-        for lang in self.langs:
+        for lang in self.hf_subsets:
             metadata = self.metadata_dict.get("dataset", None)
             dataset = datasets.load_dataset(name=lang, **metadata)
             self.dataset[lang] = _transform(dataset, lang)

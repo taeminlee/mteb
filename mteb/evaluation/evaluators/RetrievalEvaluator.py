@@ -5,7 +5,7 @@ import json
 import logging
 import os
 from collections import defaultdict
-from typing import Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import pytrec_eval
@@ -14,9 +14,13 @@ import tqdm
 from sentence_transformers import CrossEncoder, SentenceTransformer
 from sentence_transformers.models import Transformer, WordEmbeddings
 
+from mteb.encoder_interface import EncoderWithQueryCorpusEncode
+
 from .Evaluator import Evaluator
+from .model_encode import model_encode
 from .utils import (
     confidence_scores,
+    convert_conv_history_to_query,
     cos_sim,
     dot_score,
     download,
@@ -34,15 +38,23 @@ logger = logging.getLogger(__name__)
 class DenseRetrievalExactSearch:
     def __init__(
         self,
-        model,
-        batch_size: int = 128,
+        model: EncoderWithQueryCorpusEncode,
+        encode_kwargs: dict[str, Any] = {},
         corpus_chunk_size: int = 50000,
-        previous_results: str = None,
-        **kwargs,
+        previous_results: str | None = None,
+        **kwargs: Any,
     ):
         # Model is class that provides encode_corpus() and encode_queries()
         self.model = model
-        self.batch_size = batch_size
+        self.encode_kwargs = encode_kwargs
+
+        if "batch_size" not in encode_kwargs:
+            encode_kwargs["batch_size"] = 128
+        if "show_progress_bar" not in encode_kwargs:
+            encode_kwargs["show_progress_bar"] = True
+        if "convert_to_tensor" not in encode_kwargs:
+            encode_kwargs["convert_to_tensor"] = True
+
         self.score_functions = {"cos_sim": cos_sim, "dot": dot_score}
         self.score_function_desc = {
             "cos_sim": "Cosine Similarity",
@@ -50,8 +62,8 @@ class DenseRetrievalExactSearch:
         }
         self.corpus_chunk_size = corpus_chunk_size
         self.previous_results = previous_results
-        self.show_progress_bar = kwargs.get("show_progress_bar", True)
-        self.convert_to_tensor = kwargs.get("convert_to_tensor", True)
+        self.batch_size = encode_kwargs.get("batch_size")
+        self.show_progress_bar = encode_kwargs.get("show_progress_bar")
         self.save_corpus_embeddings = kwargs.get("save_corpus_embeddings", False)
         self.corpus_embeddings = defaultdict(list)
         self.results = {}
@@ -70,6 +82,7 @@ class DenseRetrievalExactSearch:
         queries: dict[str, Union[str, List[str]]],
         top_k: int,
         score_function: str,
+        prompt_name: str,
         return_sorted: bool = False,
         **kwargs,
     ) -> dict[str, dict[str, float]]:
@@ -78,30 +91,24 @@ class DenseRetrievalExactSearch:
         # Returns a ranked list with the corpus ids
         if score_function not in self.score_functions:
             raise ValueError(
-                "score function: {} must be either (cos_sim) for cosine similarity or (dot) for dot product".format(
-                    score_function
-                )
+                f"score function: {score_function} must be either (cos_sim) for cosine similarity or (dot) for dot product"
             )
 
-        logger.info("Encoding Queries...")
+        logger.info("Encoding Queries.")
         query_ids = list(queries.keys())
         self.results = {qid: {} for qid in query_ids}
         queries = [queries[qid] for qid in queries]
         if isinstance(queries[0], list):
             query_embeddings = self.model.encode_conversations(
                 queries,
-                batch_size=self.batch_size,
-                show_progress_bar=self.show_progress_bar,
-                convert_to_tensor=self.convert_to_tensor,
-                **kwargs,
+                prompt_name=prompt_name,
+                **self.encode_kwargs,
             )
         else:
             query_embeddings = self.model.encode_queries(
                 queries,
-                batch_size=self.batch_size,
-                show_progress_bar=self.show_progress_bar,
-                convert_to_tensor=self.convert_to_tensor,
-                **kwargs,
+                prompt_name=prompt_name,
+                **self.encode_kwargs,
             )
 
         logger.info("Sorting Corpus by document length (Longest first)...")
@@ -140,10 +147,9 @@ class DenseRetrievalExactSearch:
             else:
                 # Encode chunk of corpus
                 sub_corpus_embeddings = self.model.encode_corpus(
-                    corpus[corpus_start_idx:corpus_end_idx],
-                    batch_size=self.batch_size,
-                    show_progress_bar=self.show_progress_bar,
-                    convert_to_tensor=self.convert_to_tensor,
+                    corpus[corpus_start_idx:corpus_end_idx],  # type: ignore
+                    prompt_name=prompt_name,
+                    **self.encode_kwargs,
                 )
                 if self.save_corpus_embeddings and "qid" in kwargs:
                     self.corpus_embeddings[kwargs["qid"]].append(sub_corpus_embeddings)
@@ -174,15 +180,12 @@ class DenseRetrievalExactSearch:
                     cos_scores_top_k_idx[query_itr], cos_scores_top_k_values[query_itr]
                 ):
                     corpus_id = corpus_ids[corpus_start_idx + sub_corpus_id]
-                    if corpus_id != query_id:
-                        if len(result_heaps[query_id]) < top_k:
-                            # Push item on the heap
-                            heapq.heappush(result_heaps[query_id], (score, corpus_id))
-                        else:
-                            # If item is larger than the smallest in the heap, push it on the heap then pop the smallest element
-                            heapq.heappushpop(
-                                result_heaps[query_id], (score, corpus_id)
-                            )
+                    if len(result_heaps[query_id]) < top_k:
+                        # Push item on the heap
+                        heapq.heappush(result_heaps[query_id], (score, corpus_id))
+                    else:
+                        # If item is larger than the smallest in the heap, push it on the heap then pop the smallest element
+                        heapq.heappushpop(result_heaps[query_id], (score, corpus_id))
 
         for qid in result_heaps:
             for score, corpus_id in result_heaps[qid]:
@@ -302,13 +305,17 @@ class DenseRetrievalExactSearch:
             "You must implement a predict method for your reranker model"
         )
 
-    def encode_conversations(self, conversations: List[List[str]], **kwargs):
+    def encode_conversations(
+        self, conversations: List[List[str]], prompt_name: str, **kwargs
+    ):
         if callable(getattr(self.model, "encode_conversations", None)):
-            return self.model.encode_conversations(conversations, **kwargs)
+            return self.model.encode_conversations(
+                conversations, prompt_name=prompt_name, **kwargs
+            )
         # otherwise fallback to default implementation
         # TODO: add a warning here
         queries = self.convert_conv_history_to_query(conversations)
-        return self.encode_queries(queries, **kwargs)
+        return self.encode_queries(queries, prompt_name=prompt_name, **kwargs)
 
     def convert_conv_history_to_query(self, conversations: List[List[str]]) -> str:
         if callable(getattr(self.model, "convert_conv_history_to_query", None)):
@@ -327,7 +334,9 @@ class DRESModel:
         self.save_corpus_embeddings = kwargs.get("save_corpus_embeddings", False)
         self.corpus_embeddings = {}
 
-    def encode_queries(self, queries: List[str], batch_size: int, **kwargs):
+    def encode_queries(
+        self, queries: List[str], *, prompt_name: str, batch_size: int, **kwargs
+    ):
         if self.use_sbert_model:
             if isinstance(self.model._first_module(), Transformer):
                 logger.info(
@@ -351,9 +360,17 @@ class DRESModel:
             # can't just delete, cuz assign by reference on kwargs
             new_kwargs = kwargs
 
-        return self.model.encode(queries, batch_size=batch_size, **new_kwargs)
+        return model_encode(
+            queries,
+            model=self.model,
+            prompt_name=prompt_name,
+            batch_size=batch_size,
+            **new_kwargs,
+        )
 
-    def encode_corpus(self, corpus: List[Dict[str, str]], batch_size: int, **kwargs):
+    def encode_corpus(
+        self, corpus: List[Dict[str, str]], prompt_name: str, batch_size: int, **kwargs
+    ):
         if (
             "qid" in kwargs
             and self.save_corpus_embeddings
@@ -384,72 +401,44 @@ class DRESModel:
             # can't just delete, cuz assign by reference on kwargs
             new_kwargs = kwargs
 
-        corpus_embeddings = self.model.encode(
-            sentences, batch_size=batch_size, **new_kwargs
+        corpus_embeddings = model_encode(
+            sentences,
+            model=self.model,
+            prompt_name=prompt_name,
+            batch_size=batch_size,
+            **new_kwargs,
         )
+
         if self.save_corpus_embeddings and "qid" in kwargs:
-            if isinstance(corpus_embeddings, torch.tensor):
-                corpus_embeddings = corpus_embeddings.cpu().detach()
             self.corpus_embeddings[kwargs["qid"]] = corpus_embeddings
         return corpus_embeddings
 
-    def encode(self, sentences: List[str], **kwargs):
-        return self.model.encode(sentences, **kwargs)
+    def encode(self, sentences: List[str], prompt_name: str, **kwargs):
+        return self.encode_queries(sentences, prompt_name=prompt_name, **kwargs)
 
     def encode_conversations(
-        self, conversations: List[List[str]], batch_size: int, **kwargs
+        self,
+        conversations: List[List[str]],
+        *,
+        batch_size: int,
+        prompt_name: str,
+        **kwargs,
     ):
         if callable(getattr(self.model, "encode_conversations", None)):
-            return self.model.encode_conversations(conversations, **kwargs)
+            return self.model.encode_conversations(
+                conversations, prompt_name=prompt_name, **kwargs
+            )
         # otherwise fallback to default implementation
         # TODO: add a warning here
         queries = self.convert_conv_history_to_query(conversations)
-        return self.encode_queries(queries, batch_size=batch_size, **kwargs)
+        return self.encode_queries(
+            queries, batch_size=batch_size, prompt_name=prompt_name, **kwargs
+        )
 
     def convert_conv_history_to_query(self, conversations: List[List[str]]) -> str:
         if callable(getattr(self.model, "convert_conv_history_to_query", None)):
             return self.model.convert_conv_history_to_query(conversations)
         return convert_conv_history_to_query(conversations)
-
-
-def convert_conv_history_to_query(conversations: List[List[Union[str, dict]]]) -> str:
-    conversations_converted = []
-
-    for conversation in conversations:
-        # if it's a list of strings, just join them
-        if isinstance(conversation[0], str):
-            conv_str = "; ".join(conversation)
-        # otherwise, it's a list of dictionaries, which we need to convert to strings
-        elif isinstance(conversation[0], dict):
-            conv = []
-            for i, turn in enumerate(conversation):
-                error_msg = (
-                    "When converting conversations lists of dictionary to string, each turn in the conversation "
-                    "must be a dictionary with 'role' and 'content' keys"
-                )
-                if not isinstance(turn, dict):
-                    raise ValueError(f"Turn {i} is not a dictionary. " + error_msg)
-
-                # check for keys 'role' and 'content' in the dictionary, if not found, raise an error
-                if "role" not in turn:
-                    raise ValueError(
-                        "Key 'role' not found in the dictionary. " + error_msg
-                    )
-                if "content" not in turn:
-                    raise ValueError(
-                        "Key 'content' not found in the dictionary. " + error_msg
-                    )
-
-                conv.append(f"{turn['role']}: {turn['content']}")
-            conv_str = "; ".join(conv)
-        else:
-            raise ValueError(
-                "Conversations must be a list consisting of strings or dictionaries with 'role' and 'content' keys"
-            )
-
-        conversations_converted.append(conv_str)
-
-    return conversations_converted
 
 
 def is_dres_compatible(model):
@@ -472,8 +461,10 @@ class RetrievalEvaluator(Evaluator):
     def __init__(
         self,
         retriever=None,
+        task_name: str | None = None,
         k_values: List[int] = [1, 3, 5, 10, 20, 100, 1000],
         score_function: str = "cos_sim",
+        encode_kwargs: dict[str, Any] = {},
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -482,20 +473,30 @@ class RetrievalEvaluator(Evaluator):
             logger.info(
                 "The custom predict function of the model will be used if not a SentenceTransformer CrossEncoder"
             )
-            self.retriever = DenseRetrievalExactSearch(retriever, **kwargs)
+            self.retriever = DenseRetrievalExactSearch(
+                retriever, encode_kwargs=encode_kwargs, **kwargs
+            )
             self.is_cross_encoder = True
         elif is_dres_compatible(retriever):
             logger.info(
                 "The custom encode_queries and encode_corpus functions of the model will be used"
             )
-            self.retriever = DenseRetrievalExactSearch(retriever, **kwargs)
+            self.retriever = DenseRetrievalExactSearch(
+                retriever, encode_kwargs=encode_kwargs, **kwargs
+            )
         else:
-            self.retriever = DenseRetrievalExactSearch(DRESModel(retriever), **kwargs)
+            logger.info(
+                "The model does not have the optional encode_queries and encode_corpus functions. Wrapping it in DRESModel."
+            )
+            self.retriever = DenseRetrievalExactSearch(
+                DRESModel(retriever), encode_kwargs=encode_kwargs, **kwargs
+            )
         self.k_values = k_values
         self.top_k = (
             max(k_values) if "top_k" not in kwargs else kwargs["top_k"]
         )  # can lower it if reranking
         self.score_function = score_function
+        self.task_name = task_name
 
     def __call__(
         self,
@@ -509,7 +510,11 @@ class RetrievalEvaluator(Evaluator):
             return self.retriever.search_cross_encoder(corpus, queries, self.top_k)
         else:
             return self.retriever.search(
-                corpus, queries, self.top_k, self.score_function
+                corpus,
+                queries,
+                self.top_k,
+                self.score_function,
+                prompt_name=self.task_name,  # type: ignore
             )
 
     @staticmethod
@@ -517,18 +522,27 @@ class RetrievalEvaluator(Evaluator):
         qrels: dict[str, dict[str, int]],
         results: dict[str, dict[str, float]],
         k_values: List[int],
-        ignore_identical_ids: bool = True,
-    ) -> Tuple[Dict[str, float], dict[str, float], dict[str, float], dict[str, float]]:
+        ignore_identical_ids: bool = False,
+    ) -> Tuple[
+        dict[str, float],
+        dict[str, float],
+        dict[str, float],
+        dict[str, float],
+        dict[str, float],
+    ]:
         if ignore_identical_ids:
-            logger.info(
-                "For evaluation, we ignore identical query and document ids (default), please explicitly set ``ignore_identical_ids=False`` to ignore this."
+            logger.debug(
+                "For evaluation, ``ignore_identical_ids=True`` is set to True, the evaluator will ignore identical query and document ids."
             )
-            popped = []
+            # Remove identical ids from results dict
             for qid, rels in results.items():
                 for pid in list(rels):
                     if qid == pid:
                         results[qid].pop(pid)
-                        popped.append(pid)
+        else:
+            logger.debug(
+                "For evaluation, we DO NOT ignore identical query and document ids (default), please explicitly set ``ignore_identical_ids=True`` to ignore this."
+            )
 
         all_ndcgs, all_aps, all_recalls, all_precisions = {}, {}, {}, {}
 

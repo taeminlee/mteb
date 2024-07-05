@@ -7,7 +7,7 @@ from datasets import Dataset
 
 from ..encoder_interface import Encoder, EncoderWithQueryCorpusEncode
 from ..evaluation.evaluators import PairClassificationEvaluator
-from ..MTEBResults import ScoresDict
+from ..load_results.mteb_results import ScoresDict
 from .AbsTask import AbsTask
 
 logger = logging.getLogger(__name__)
@@ -19,8 +19,8 @@ class AbsTaskPairClassification(AbsTask):
     is computed to measure how well the methods can be used for pairwise pair classification.
 
     self.load_data() must generate a huggingface dataset with a split matching self.metadata_dict["eval_splits"], and assign it to self.dataset. It must contain the following columns:
-        sent1: list[str]
-        sent2: list[str]
+        sentence1: list[str]
+        sentence2: list[str]
         labels: list[int]
     """
 
@@ -34,6 +34,8 @@ class AbsTaskPairClassification(AbsTask):
         self,
         model: Encoder | EncoderWithQueryCorpusEncode,
         dataset: Dataset,
+        *,
+        encode_kwargs: dict[str, str] = {},
         **kwargs,
     ) -> ScoresDict:
         data_split = dataset[0]
@@ -41,9 +43,13 @@ class AbsTaskPairClassification(AbsTask):
             "sentence_transformers.evaluation.PairClassificationEvaluator"
         ).setLevel(logging.WARN)
         evaluator = PairClassificationEvaluator(
-            data_split["sent1"], data_split["sent2"], data_split["labels"], **kwargs
+            data_split["sentence1"],
+            data_split["sentence2"],
+            data_split["labels"],
+            task_name=self.metadata.name,
+            **kwargs,
         )
-        scores = evaluator.compute_metrics(model)
+        scores = evaluator.compute_metrics(model, encode_kwargs=encode_kwargs)
 
         # Compute max
         max_scores = defaultdict(list)

@@ -4,7 +4,7 @@ from typing import Any
 
 import datasets
 
-from mteb.abstasks import AbsTaskBitextMining, CrosslingualTask
+from mteb.abstasks import AbsTaskBitextMining, MultilingualTask
 from mteb.abstasks.TaskMetadata import TaskMetadata
 
 _BRIDGE_LANGUAGES = (
@@ -237,13 +237,14 @@ def extend_lang_pairs() -> dict[str, list[str]]:
                         x.replace("_", "-"),
                         y.replace("_", "-"),
                     ]
+
     return hf_lang_subset2isolang
 
 
 _EVAL_LANGS = extend_lang_pairs()
 
 
-class NTREXBitextMining(AbsTaskBitextMining, CrosslingualTask):
+class NTREXBitextMining(AbsTaskBitextMining, MultilingualTask):
     parallel_subsets = True
     metadata = TaskMetadata(
         name="NTREXBitextMining",
@@ -290,5 +291,5 @@ class NTREXBitextMining(AbsTaskBitextMining, CrosslingualTask):
         """Load dataset from HuggingFace hub"""
         if self.data_loaded:
             return
-        self.dataset = datasets.load_dataset(**self.metadata_dict["dataset"])
+        self.dataset = datasets.load_dataset(**self.metadata.dataset)
         self.data_loaded = True

@@ -2,7 +2,7 @@ from typing import Dict, List
 
 import datasets
 
-from mteb.abstasks import AbsTaskRetrieval, CrosslingualTask, TaskMetadata
+from mteb.abstasks import AbsTaskRetrieval, MultilingualTask, TaskMetadata
 
 _LANGUAGES = {
     "wmt21.de.fr": ["deu-Latn", "fra-Latn"],
@@ -28,7 +28,7 @@ def extend_lang_pairs() -> Dict[str, List[str]]:
 _EVAL_LANGS = extend_lang_pairs()
 
 
-class CrossLingualSemanticDiscriminationWMT21(AbsTaskRetrieval, CrosslingualTask):
+class CrossLingualSemanticDiscriminationWMT21(AbsTaskRetrieval, MultilingualTask):
     metadata = TaskMetadata(
         name="CrossLingualSemanticDiscriminationWMT21",
         dataset={
@@ -53,7 +53,24 @@ class CrossLingualSemanticDiscriminationWMT21(AbsTaskRetrieval, CrosslingualTask
         text_creation="LM-generated and verified",
         bibtex_citation="preprint_coming",
         n_samples={"test": 1786},
-        avg_character_length={"test": 159},
+        avg_character_length={
+            "test": {
+                "deu-fra": {
+                    "average_document_length": 177.26270996640537,
+                    "average_query_length": 171.73012318029114,
+                    "num_documents": 4465,
+                    "num_queries": 893,
+                    "average_relevant_docs_per_query": 1.0,
+                },
+                "fra-deu": {
+                    "average_document_length": 174.45061590145576,
+                    "average_query_length": 176.99216125419932,
+                    "num_documents": 4465,
+                    "num_queries": 893,
+                    "average_relevant_docs_per_query": 1.0,
+                },
+            },
+        },
     )
 
     def __init__(self, **kwargs):

@@ -32,9 +32,25 @@ class SNLRetrieval(AbsTaskRetrieval):
     school={Norwegian University of Life Sciences, {\AA}s}
 }""",
         n_samples={"test": 2048},
-        avg_character_length={"test": 1101.30},
+        avg_character_length={
+            "test": {
+                "average_document_length": 1986.9453846153847,
+                "average_query_length": 14.906153846153845,
+                "num_documents": 1300,
+                "num_queries": 1300,
+                "average_relevant_docs_per_query": 1.0,
+            },
+        },
         task_subtypes=["Article retrieval"],
     )
+
+    def load_data(self, **kwargs):
+        """Load dataset from HuggingFace hub"""
+        if self.data_loaded:
+            return
+        self.dataset = datasets.load_dataset(**self.metadata.dataset)  # type: ignore
+        self.dataset_transform()
+        self.data_loaded = True
 
     def dataset_transform(self) -> None:
         """And transform to a retrieval datset, which have the following attributes
