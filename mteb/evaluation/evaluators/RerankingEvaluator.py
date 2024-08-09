@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from functools import partial
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable
 
 import numpy as np
 import torch
@@ -210,7 +210,7 @@ class RerankingEvaluator(Evaluator):
             all_docs,
             encode_corpus_func,
             prompt_name=self.task_name,
-            encode_kwargs=self.encode_kwargs,
+            **self.encode_kwargs,
         )
 
         # Compute scores and confidence scores
@@ -422,7 +422,7 @@ class RerankingEvaluator(Evaluator):
         all_texts: list[str],
         encode_fn: Callable,
         prompt_name: str | None,
-        encode_kwargs: dict[str, Any],
+        **encode_kwargs: Any,
     ):
         index_map, all_unique_texts, all_texts_indexes = {}, [], []
         for text in all_texts:
@@ -459,8 +459,8 @@ class RerankingEvaluator(Evaluator):
         return sim_scores
 
     def _compute_metrics_instance(
-        self, sim_scores: torch.Tensor, is_relevant: List[bool]
-    ) -> Dict[str, float]:
+        self, sim_scores: torch.Tensor, is_relevant: list[bool]
+    ) -> dict[str, float]:
         """Computes metrics for a single instance = (query, positives, negatives)
 
         Args:
@@ -478,7 +478,7 @@ class RerankingEvaluator(Evaluator):
         return {"mrr": mrr, "ap": ap}
 
     @staticmethod
-    def conf_scores(sim_scores: torch.Tensor) -> Dict[str, float]:
+    def conf_scores(sim_scores: torch.Tensor) -> dict[str, float]:
         """Computes confidence scores for a single instance = (query, positives, negatives)
 
         Args:
@@ -494,10 +494,10 @@ class RerankingEvaluator(Evaluator):
 
     @staticmethod
     def nAUC_scores(
-        all_conf_scores: List[Dict[str, float]],
-        metrics: List[float],
+        all_conf_scores: list[dict[str, float]],
+        metrics: list[float],
         metric_name: str,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Computes normalized Area Under the Curve on a set of evaluated instances as presented in the paper https://arxiv.org/abs/2402.12997
 
         Args:

@@ -38,12 +38,18 @@ Advanced scripts with different models are available in the [mteb/mtebscripts re
 mteb create_meta --results_folder results/{model_name}/{model_revision} --output_path model_card.md
 ```
 
+If readme of model exists:
+
+```bash
+mteb create_meta --results_folder results/{model_name}/{model_revision} --output_path model_card.md --from_existing your_existing_readme.md 
+```
+
 3. **Add the frontmatter to model repository:**
 
 Copy the content of the `model_card.md` file to the top of a `README.md` file of your model on the Hub. See [here](https://huggingface.co/Muennighoff/SGPT-5.8B-weightedmean-msmarco-specb-bitfit/blob/main/README.md) for an example.
 
-4. **Refresh the leaderboard:**
+4. **Wait for a refresh the leaderboard:**
 
-Hit the Refresh button at the bottom of the leaderboard and you should see your scores 🥇
+The leaderboard will then automatically refresh daily so once submitted all you have to do is wait for the automatic refresh.
 
-To have the scores appear without refreshing, you can open an issue on the [Community Tab of the LB](https://huggingface.co/spaces/mteb/leaderboard/discussions) and someone will restart the space to cache your average scores. The cache is updated anyways ~1x/week.
+You can find the workflows for the leaderboard refresh [here](https://github.com/embeddings-benchmark/leaderboard/tree/main/.github/workflows). If you experience issues with the leaderboard please create an [issue](https://github.com/embeddings-benchmark/mteb/issues).

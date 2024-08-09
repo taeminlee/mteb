@@ -4,7 +4,7 @@ import itertools
 import logging
 import random
 from collections import defaultdict
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import numpy as np
 import sklearn
@@ -30,7 +30,7 @@ def evaluate_clustering_bootstrapped(
     n_clusters: int,
     cluster_size: int,
     kmean_batch_size: int,
-    max_depth: Optional[int],
+    max_depth: int | None,
     rng_state: random.Random = random.Random(),
 ) -> dict[str, list[float]]:
     """Bootstrapped evaluation of clustering performance using V-measure.
@@ -143,11 +143,14 @@ class AbsTaskClusteringFast(AbsTask):
         ):
             downsampled_dataset = dataset
         else:
-            max_documents_to_embed = min(len(dataset), self.max_document_to_embed)  # type: ignore
             if self.max_fraction_of_documents_to_embed is not None:
                 max_documents_to_embed = int(
                     self.max_fraction_of_documents_to_embed * len(dataset)
                 )
+            else:
+                max_documents_to_embed = self.max_document_to_embed
+
+            max_documents_to_embed = min(len(dataset), max_documents_to_embed)  # type: ignore
             example_indices = rng_state.sample(
                 range(len(dataset)), k=max_documents_to_embed
             )

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import random
 from abc import ABC, abstractmethod
-from typing import Any, Sequence
+from typing import Any, Dict, Sequence
 
 import datasets
 import numpy as np
@@ -12,13 +12,14 @@ from datasets import Dataset, DatasetDict
 from sklearn.preprocessing import MultiLabelBinarizer
 
 from mteb.abstasks.stratification import _iterative_train_test_split
-from mteb.abstasks.TaskMetadata import TaskMetadata
+from mteb.abstasks.TaskMetadata import HFSubset, TaskMetadata
 from mteb.encoder_interface import Encoder, EncoderWithQueryCorpusEncode
 from mteb.languages import LanguageScripts
 
-from ..load_results.mteb_results import HFSubset, ScoresDict
-
 logger = logging.getLogger(__name__)
+
+ScoresDict = Dict[str, Any]
+# ^ e.g {'main_score': 0.5, 'hf_subset': 'en-de', 'languages': ['eng-Latn', 'deu-Latn']}
 
 
 def _multilabel_subsampling(
@@ -103,9 +104,7 @@ class AbsTask(ABC):
         self.dataset: dict[HFSubset, DatasetDict]
 
         scores = {}
-        hf_subsets = (
-            [l for l in self.dataset.keys()] if self.is_multilingual else ["default"]
-        )
+        hf_subsets = list(self.dataset.keys()) if self.is_multilingual else ["default"]
 
         for hf_subset in hf_subsets:
             logger.info(

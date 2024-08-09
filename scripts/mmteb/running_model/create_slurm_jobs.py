@@ -61,33 +61,32 @@ if __name__ == "__main__":
     slurm_prefix = """#!/bin/bash
 #SBATCH --job-name=mteb
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1          # crucial - only 1 task per dist per node!
-#SBATCH --hint=nomultithread         # we get physical cores not logical
 #SBATCH --partition=a3
 #SBATCH --gres=gpu:8                 # number of gpus
-#SBATCH --time 99:00:00             # maximum execution time (HH:MM:SS)
+#SBATCH --time 24:00:00             # maximum execution time (HH:MM:SS)
 #SBATCH --output=/data/niklas/jobs/%x-%j.out           # output file name
 #SBATCH --exclusive
 """
 
     project_root = Path(__file__).parent / ".." / ".." / ".."
     results_folder = project_root / "results"
+    results_folder = Path("/data/niklas/results")
     slurm_jobs_folder = Path(__file__).parent / "slurm_jobs"
 
     model_names = [
-        "sentence-transformers/all-MiniLM-L6-v2",
-        "sentence-transformers/all-MiniLM-L12-v2",
-        "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-        "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
-        "sentence-transformers/all-mpnet-base-v2",
-        "sentence-transformers/LaBSE",
-        "intfloat/multilingual-e5-large-instruct",
-        "intfloat/e5-mistral-7b-instruct",
+        # "sentence-transformers/all-MiniLM-L6-v2",
+        # "sentence-transformers/all-MiniLM-L12-v2",
+        # "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+        # "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+        # "sentence-transformers/all-mpnet-base-v2",
+        # "sentence-transformers/LaBSE",
+        # "intfloat/multilingual-e5-large-instruct",
+        # "intfloat/e5-mistral-7b-instruct",
         "GritLM/GritLM-7B",
-        "GritLM/GritLM-8x7B",
-        "intfloat/multilingual-e5-small",
-        "intfloat/multilingual-e5-base",
-        "intfloat/multilingual-e5-large",
+        # "GritLM/GritLM-8x7B",
+        # "intfloat/multilingual-e5-small",
+        # "intfloat/multilingual-e5-base",
+        # "intfloat/multilingual-e5-large",
     ]
 
     # expanding to a full list of tasks
@@ -95,27 +94,30 @@ if __name__ == "__main__":
         task_types=[
             "BitextMining",
             "Classification",
-            "MultilabelClassification",
-            "PairClassification",
-            "Reranking",
-            "STS",
-            "Summarization",
-        ]
-    )
-
-    tasks = mteb.get_tasks(
-        task_types=[
-            "BitextMining",
-            "Classification",
-            "MultilabelClassification",
-            "PairClassification",
-            "Reranking",
-            "STS",
-            "Summarization",
             "Clustering",
-            "InstructionRetrieval",
+            "MultilabelClassification",
+            "PairClassification",
+            "Reranking",
             "Retrieval",
-        ]
+            "InstructionRetrieval",
+            "STS",
+            "Summarization",
+        ],
+        tasks=[
+            # "LivedoorNewsClustering",
+            # "FaithDial",
+            # "StatcanDialogueDatasetRetrieval",
+            # "STS22",
+            # "IN22GenBitextMining",
+            # "IN22ConvBitextMining",
+            # "FloresBitextMining",
+            # "WikipediaRetrievalMultilingual"
+            # "RARbMath"
+            # "Touche2020",
+            # "WebLINXCandidatesReranking",
+            # "MultiLongDocRetrieval",
+            # "CodeEditSearchRetrieval",
+        ],
     )
 
     # WE ALSO NEED TO RUN THESE
