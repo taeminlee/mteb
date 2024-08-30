@@ -99,6 +99,7 @@ from .kat.GeorgianFAQRetrieval import *
 from .kor.KoStrategyQA import *
 from .kor.ontheit_bm1 import *
 from .kor.ontheit_bm2 import *
+from .kor.markers_bm import *
 from .multilingual.BelebeleRetrieval import *
 from .multilingual.CrossLingualSemanticDiscriminationWMT19 import *
 from .multilingual.CrossLingualSemanticDiscriminationWMT21 import *
