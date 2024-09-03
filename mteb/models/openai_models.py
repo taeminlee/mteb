@@ -5,10 +5,13 @@ from functools import partial
 from typing import Any
 
 import numpy as np
+import tqdm
 
 from mteb.model_meta import ModelMeta
 from mteb.models.text_formatting_utils import corpus_to_texts
 from mteb.requires_package import requires_package
+
+import tiktoken
 
 logger = logging.getLogger(__name__)
 
@@ -21,24 +24,36 @@ class OpenAIWrapper:
         self._client = OpenAI()
         self._model_name = model_name
         self._embed_dim = embed_dim
+        self.enc = tiktoken.encoding_for_model(model_name)
+    
+    def truncate(self, sentence, max_length=8192, pass_length=1024):
+        if len(sentence) < pass_length:
+            return sentence
+        return self.enc.decode(self.enc.encode(sentence)[0:max_length])
 
     def encode(self, sentences: list[str], **kwargs: Any) -> np.ndarray:
         requires_package(self, "openai", "Openai text embedding")
-        from openai import NotGiven
+        requires_package(self, "tiktoken", "Openai tokenizer")
+        minibatch_size = 64
+        embeds = []
+        for i in tqdm.tqdm(range(0, len(sentences), minibatch_size)):
+            minibatch = sentences[i:i+minibatch_size]
+            minibatch = [self.truncate(sentence) for sentence in minibatch]
+            from openai import NotGiven
 
-        if self._model_name == "text-embedding-ada-002" and self._embed_dim is not None:
-            logger.warning(
-                "Reducing embedding size available only for text-embedding-3-* models"
-            )
+            if self._model_name == "text-embedding-ada-002" and self._embed_dim is not None:
+                logger.warning(
+                    "Reducing embedding size available only for text-embedding-3-* models"
+                )
 
-        return self._to_numpy(
-            self._client.embeddings.create(
-                input=sentences,
-                model=self._model_name,
-                encoding_format="float",
-                dimensions=self._embed_dim or NotGiven(),
-            )
-        )
+            embeds += [e.embedding for e in 
+                       self._client.embeddings.create(
+                            input=minibatch,
+                            model=self._model_name,
+                            encoding_format="float",
+                            dimensions=self._embed_dim or NotGiven()).data]
+            
+        return np.array(embeds)
 
     def encode_queries(self, queries: list[str], **kwargs: Any) -> np.ndarray:
         return self.encode(queries, **kwargs)
@@ -49,8 +64,6 @@ class OpenAIWrapper:
         sentences = corpus_to_texts(corpus)
         return self.encode(sentences, **kwargs)
 
-    def _to_numpy(self, embedding_response) -> np.ndarray:
-        return np.array([e.embedding for e in embedding_response.data])
 
 
 text_embedding_3_small = ModelMeta(
