@@ -4,8 +4,8 @@ import logging
 
 import datasets
 
-from mteb.abstasks import MultilingualTask
 from mteb.abstasks.AbsTaskRetrieval import AbsTaskRetrieval
+from mteb.abstasks.MultilingualTask import MultilingualTask
 from mteb.abstasks.TaskMetadata import TaskMetadata
 
 _LANGS = ["python", "javascript", "go", "ruby", "java", "php"]
@@ -79,8 +79,8 @@ class CodeSearchNetCCRetrieval(MultilingualTask, AbsTaskRetrieval):
         description="The dataset is a collection of code snippets. The task is to retrieve the most relevant code snippet for a given code snippet.",
         reference="https://arxiv.org/abs/2407.02883",
         dataset={
-            "path": "mteb/CodeSearchNet-ccr",
-            "revision": "512ab2f14f474940cd71e78df6be8e88e76ad8e9",
+            "path": "CoIR-Retrieval/CodeSearchNet-ccr",
+            "revision": "6e1effa2c03723c5fde48ee912b5ee08d4f211e8",
         },
         type="Retrieval",
         category="p2p",
