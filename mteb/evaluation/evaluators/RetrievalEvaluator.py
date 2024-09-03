@@ -475,7 +475,7 @@ class RetrievalEvaluator(Evaluator):
             return self.retriever.search_cross_encoder(corpus, queries, self.top_k)
         elif (
             hasattr(self.retriever.model, "mteb_model_meta")
-            and self.retriever.model.mteb_model_meta.name == "bm25s"
+            and self.retriever.model.mteb_model_meta.name in ["bm25s", 'bm25s-kor']
         ):
             return self.retriever.model.search(
                 corpus,

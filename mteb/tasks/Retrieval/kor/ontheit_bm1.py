@@ -11,8 +11,8 @@ class OntheITBM1(AbsTaskRetrieval):
         description="ontheit_bm1",
         reference=None,
         dataset={
-            "path": "/data/ONTHEIT/ontheit_benchmark_1",
-            "revision": "db69356c563357ff4a73021422308d0808368161"
+            "path": "KU-HIAI-ONTHEIT/ontheit_benchmark_1",
+            "revision": "ad4d62dfae45ceb46d77a77f27367e3f18e1563e"
         },
         type="Retrieval",
         category="s2p",
