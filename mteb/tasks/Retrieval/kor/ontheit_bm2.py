@@ -12,7 +12,7 @@ class OntheITBM2(AbsTaskRetrieval):
         reference=None,
         dataset={
             "path": "KU-HIAI-ONTHEIT/ontheit_benchmark_2",
-            "revision": "9f2718cc30bf7b5efcfc4388657b04a9bbd3ce9c"
+            "revision": "acbc0314c7d2a65ce1198416119918a35a9478ba"
         },
         type="Retrieval",
         category="s2p",
